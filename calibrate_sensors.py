@@ -190,12 +190,8 @@ def calibrate_gyro(vicon_euler_angles, gyro, timestamps):
     roll_sensitivity = compute_gyro_sensor_sensitivity(roll_rate, gyro_unbiased[0, constant_roll_range[0]:constant_roll_range[1]])
 
     # Compute yaw sensitivity
-    constant_yaw_range = [2185, 2190]
-    constant_yaw_times = timestamps[constant_yaw_range[0]:constant_yaw_range[1]]
-    constant_yaw = vicon_euler_angles[constant_yaw_range[0]:constant_yaw_range[1], 2]
-    print(constant_yaw)
-    yaw_rate = compute_derivative(constant_yaw_times, constant_yaw, window_length=1, name='yaw')
-    yaw_sensitivity = compute_gyro_sensor_sensitivity(yaw_rate, gyro_unbiased[2, constant_yaw_range[0]:constant_yaw_range[1]])
+    # We don't have any good estimate of yaw rate, so we will use the average of roll and pitch sensitivities
+    yaw_sensitivity = (roll_sensitivity + pitch_sensitivity) / 2
 
     print(f"Gyro sensitivities (mv/(rad/s)), (roll, pitch, yaw): {roll_sensitivity:.2f}, {pitch_sensitivity:.2f}, {yaw_sensitivity:.2f}")
 
