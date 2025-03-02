@@ -29,7 +29,7 @@ def sample_sigma_points(x, Sigma, R, dt):
         q_w.from_axis_angle(W_2[:3])
         sigma_points[i+n+1][:4] = (q_x*q_w).q
         sigma_points[i+n+1][4:] = x[4:] + W_2[3:]
-        
+
     return sigma_points
 
 
@@ -73,6 +73,14 @@ def measurement_model_accel(x_k):
     return accn.vec()
 
 
+def measurement_model(x_k):
+    """
+    Given a state x_k at time k, this function
+    returns the predicted measurement.
+    """
+    return np.concatenate([measurement_model_gyro(x_k), measurement_model_accel(x_k)])
+
+
 def quaternion_errors(qs, ref_q):
     """
     Given a list of quaternions qs and a reference quaternion ref_q,
@@ -83,6 +91,7 @@ def quaternion_errors(qs, ref_q):
         q_error = q * ref_q.inv()
         errors[i] = q_error.axis_angle()
     return errors
+
 
 def average_quaternions(quaternions, initial_estimate):
     """
@@ -110,7 +119,7 @@ def mean_covariance_from_states(states, initial_estimate):
     Given a list of states, this function returns the average state and the covariance matrix.
     """
     quat_avg, errors = average_quaternions([Quaternion(scalar = state[0], vec = state[1:4]) for state in states], 
-                                    Quaternion(scalar = initial_estimate[0], vec = initial_estimate[1:4]))
+                                            initial_estimate)
     omegas = np.array([state[4:] for state in states])
     omega_avg = np.mean(omegas, axis=0)
     omega_error = omegas - omega_avg
@@ -149,7 +158,7 @@ def cross_covariance(states, measurements, state_avg, measurement_avg):
     omegas = np.array([state[4:] for state in states])
     errors = quaternion_errors(qs, q_avg)
     omega_error = omegas - omega_avg
-    state_errors = np.concatenate([errors, omega_error])
+    state_errors = np.hstack([errors, omega_error])
     measurement_error = measurements - measurement_avg
     Sigma = np.zeros((6,6))
     for i in range(len(states)):

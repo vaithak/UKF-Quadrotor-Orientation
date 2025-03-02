@@ -70,7 +70,7 @@ def calibrate_accel(vicon_rots, accel):
         # Convert body frame to IMU frame -> ax, and ay are reverse in IMU frame
         imu_ax = -accn_body_frame[0]
         imu_ay = -accn_body_frame[1]
-        imu_az = -accn_body_frame[2]
+        imu_az = accn_body_frame[2]
 
         # This will act as a value for IMU's accelerometer
         imu_ax_X[i] = [(1023 * imu_ax) / (3300), 1]
