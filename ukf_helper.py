@@ -1,5 +1,6 @@
 import numpy as np
 from quaternion import Quaternion
+from scipy.linalg import sqrtm
 
 
 def sample_sigma_points(x, Sigma, R, dt):
@@ -12,8 +13,8 @@ def sample_sigma_points(x, Sigma, R, dt):
     n = Sigma.shape[0] # 6
     sigma_points = np.zeros((2*n+1, len(x))) # shape (13, 7)
     sigma_points[0] = x # mean is the first sigma point
-    S = np.linalg.cholesky(Sigma + R*dt) # shape (6,6)
-    L = np.sqrt(n)*S
+    S = sqrtm((Sigma + R*dt) * np.sqrt(n)) # shape (6,6)
+    L = S
     for i in range(n):
         q_x = Quaternion(scalar = x[0], vec = x[1:4])
     
@@ -45,6 +46,7 @@ def process_update(x_k, dt):
     q_delta = Quaternion()
     q_delta.from_axis_angle(omega*dt)
     q_kp1 = q_k*q_delta
+    q_kp1.normalize()
     x_kp1[:4] = q_kp1.q
     x_kp1[4:] = omega
     return x_kp1
@@ -55,11 +57,12 @@ def measurement_model_gyro(x_k):
     Given a state x_k at time k, this function
     returns the predicted gyro measurement.
     """
-    q_k = Quaternion(scalar = x_k[0], vec = x_k[1:4])
+    # q_k = Quaternion(scalar = x_k[0], vec = x_k[1:4])
     omega = x_k[4:]
-    omega_pure_quat = Quaternion(scalar = 0, vec = omega)
-    gyro = q_k.inv() * omega_pure_quat * q_k
-    return gyro.vec()
+    # omega_pure_quat = Quaternion(scalar = 0, vec = omega)
+    # gyro = q_k.inv() * omega_pure_quat * q_k
+    # return gyro.vec()
+    return omega
 
 
 def measurement_model_accel(x_k):
@@ -68,7 +71,7 @@ def measurement_model_accel(x_k):
     returns the predicted accelerometer measurement.
     """
     q_k = Quaternion(scalar = x_k[0], vec = x_k[1:4])
-    gravity_pure_quat = Quaternion(scalar = 0, vec = [0, 0, -9.81]) # TODO: Check if this is correct
+    gravity_pure_quat = Quaternion(scalar = 0, vec = [0, 0, 9.81]) # TODO: Check if this is correct
     accn = q_k.inv() * gravity_pure_quat * q_k
     return accn.vec()
 
@@ -78,7 +81,7 @@ def measurement_model(x_k):
     Given a state x_k at time k, this function
     returns the predicted measurement.
     """
-    return np.concatenate([measurement_model_gyro(x_k), measurement_model_accel(x_k)])
+    return np.concatenate([measurement_model_accel(x_k), measurement_model_gyro(x_k)])
 
 
 def quaternion_errors(qs, ref_q):
@@ -89,6 +92,7 @@ def quaternion_errors(qs, ref_q):
     errors = np.zeros((len(qs), 3))
     for i, q in enumerate(qs):
         q_error = q * ref_q.inv()
+        q_error.normalize()
         errors[i] = q_error.axis_angle()
     return errors
 
@@ -101,7 +105,7 @@ def average_quaternions(quaternions, initial_estimate):
     q_mean = Quaternion(scalar = initial_estimate[0], vec = initial_estimate[1:4])
 
     # Gradient descent
-    max_iter = 1000
+    max_iter = 100
     epsilon = 1e-5
     for i in range(max_iter):
         errors = quaternion_errors(quaternions, q_mean)
@@ -111,6 +115,7 @@ def average_quaternions(quaternions, initial_estimate):
         error_q = Quaternion()
         error_q.from_axis_angle(error_mean)
         q_mean = error_q * q_mean
+        q_mean.normalize()
     return q_mean.q, errors
 
 
@@ -185,7 +190,8 @@ def update_mean_state(x_k, K, z_k, z_pred):
     q_update = Quaternion()
     q_update.from_axis_angle(update_vector[:3])
     q_k = Quaternion(scalar = x_k[0], vec = x_k[1:4])
-    q_k_new = q_k * q_update
+    q_k_new = q_update * q_k
+    q_k_new.normalize()
     x_k_new = np.zeros_like(x_k)
     x_k_new[:4] = q_k_new.q
     x_k_new[4:] = x_k[4:] + update_vector[3:]

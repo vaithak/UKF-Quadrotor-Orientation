@@ -3,7 +3,7 @@ from scipy import io
 from quaternion import Quaternion
 import math
 from matplotlib import pyplot as plt
-import ukf_helper as ukf
+from ukf_helper import *
 
 
 def estimate_rot(data_num=1):
@@ -27,6 +27,9 @@ def estimate_rot(data_num=1):
 
     # Convert raw sensor data to physical units
     for i in range(T):
+        # Convert gyro data from from Wz, Wx, Wy to Wx, Wy, Wz
+        gyro[i] = np.array([gyro[i,1], gyro[i,2], gyro[i,0]])
+
         accel[i] = (3300 * (accel[i] - accel_biases)) / (1023 * accel_sensitivity)
         gyro[i] = (3300 * (gyro[i] - gyro_biases)) / (1023 * gyro_sensitivity)
 
@@ -35,13 +38,10 @@ def estimate_rot(data_num=1):
         accel[i,1] = -accel[i,1]
         accel[i,2] = accel[i,2]
 
-        # Convert gyro data from from Wz, Wx, Wy to Wx, Wy, Wz
-        gyro[i] = np.array([gyro[i,1], gyro[i,2], gyro[i,0]])
-
     # Assign Noise covariances and initialze state covariance
-    meas_noise_cov = np.eye(6) * 6.0
-    process_noise_cov = np.eye(6) * 0.1
-    state_cov = np.eye(6) * 0.001
+    meas_noise_cov = np.eye(6) * 0.1
+    process_noise_cov = np.eye(6) * 10
+    state_cov = np.eye(6)
 
     # Initialize state
     state_mean = np.array([1, 0, 0, 0, 0, 0, 0]) # q = [1, 0, 0, 0], omega = [0, 0, 0]
@@ -56,43 +56,43 @@ def estimate_rot(data_num=1):
             dt = imu['ts'][0][i] - imu['ts'][0][i-1]
 
         # Sample sigma points
-        sigma_points = ukf.sample_sigma_points(state_mean, state_cov, process_noise_cov, dt)
+        sigma_points = sample_sigma_points(state_mean, state_cov, process_noise_cov, dt)
 
         # Apply dynamics update to each sigma point
         sigma_points_Y = np.zeros_like(sigma_points)
         for j in range(len(sigma_points)):
-            sigma_points_Y[j] = ukf.process_update(sigma_points[j], dt)
+            sigma_points_Y[j] = process_update(sigma_points[j], dt)
 
         # Compute prior mean and covariance
         initial_mean_estimate = sigma_points_Y[0]
-        mu_prior, Sigma_prior = ukf.mean_covariance_from_states(
+        mu_prior, Sigma_prior = mean_covariance_from_states(
             sigma_points_Y, initial_mean_estimate
         )
 
         # Compute new sigma points
-        sigma_points_new = ukf.sample_sigma_points(mu_prior, Sigma_prior, 0, dt)
+        sigma_points_new = sample_sigma_points(mu_prior, Sigma_prior, 0, dt)
 
         # Compute predicted measurements
         predicted_measurements = np.zeros((len(sigma_points_new), 6))
         for j in range(len(sigma_points_new)):
-            predicted_measurements[j] = ukf.measurement_model(sigma_points_new[j])
+            predicted_measurements[j] = measurement_model(sigma_points_new[j])
 
         # Compute predicted measurement mean and covariance
-        mu_hat, Sigma_hat = ukf.mean_covariance_from_measurements(
+        mu_hat, Sigma_hat = mean_covariance_from_measurements(
             predicted_measurements, 
             meas_noise_cov
         )
 
         # Compute cross covariance
-        cross_cov = ukf.cross_covariance(sigma_points_new, predicted_measurements, mu_prior, mu_hat)
+        cross_cov = cross_covariance(sigma_points_Y, predicted_measurements, mu_prior, mu_hat)
 
         # Compute Kalman gain
-        K = ukf.KalmanGain(cross_cov, Sigma_hat)
+        K = KalmanGain(cross_cov, Sigma_hat)
 
         # Update state mean and covariance
         observation = np.concatenate((accel[i], gyro[i]))
-        state_mean = ukf.update_mean_state(mu_prior, K, observation, mu_hat)
-        state_cov = ukf.update_covariance(Sigma_prior, K, cross_cov)
+        state_mean = update_mean_state(mu_prior, K, observation, mu_hat)
+        state_cov = update_covariance(Sigma_prior, K, Sigma_hat)
 
         # Store results
         q = Quaternion(scalar = state_mean[0], vec = state_mean[1:4])
@@ -107,7 +107,7 @@ def estimate_rot(data_num=1):
 
 
 if __name__ == '__main__':
-    roll, pitch, yaw = estimate_rot()
+    roll, pitch, yaw = estimate_rot(1)
     plt.plot(roll, label='Roll')
     plt.plot(pitch, label='Pitch')
     plt.plot(yaw, label='Yaw')

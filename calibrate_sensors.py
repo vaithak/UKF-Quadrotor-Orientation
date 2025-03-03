@@ -65,7 +65,7 @@ def calibrate_accel(vicon_rots, accel):
     for i in range(max_T):
         # In world frame - accn = [0, 0, 9.81]
         # Convert to body frame
-        accn_body_frame = np.dot(vicon_rots[i].reshape((3,3)), np.array([0, 0, -9.81]))
+        accn_body_frame = np.dot(vicon_rots[i].reshape((3,3)).T, np.array([0, 0, 9.81]))
 
         # Convert body frame to IMU frame -> ax, and ay are reverse in IMU frame
         imu_ax = -accn_body_frame[0]

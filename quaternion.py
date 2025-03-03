@@ -80,9 +80,3 @@ class Quaternion:
 
     def __str__(self):
         return str(self.scalar()) + ', ' + str(self.vec())
-
-
-#q = Quaternion()
-#R = np.array([[1, 0, 0],[0, 0.707, -0.707],[0, 0.707, 0.707]])
-#q.from_rotm(R)
-#print q
