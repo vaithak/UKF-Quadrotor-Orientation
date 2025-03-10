@@ -48,6 +48,10 @@ def estimate_rot(data_num=1):
 
     # Store results
     roll, pitch, yaw = [], [], []
+    ox = []
+    oy = []
+    oz = []
+    cov = []
 
     for i in range(T):
         if i == 0:
@@ -101,8 +105,129 @@ def estimate_rot(data_num=1):
         pitch.append(rpy[1])
         yaw.append(rpy[2])
 
+        # Store omega
+        ox.append(state_mean[4])
+        oy.append(state_mean[5])
+        oz.append(state_mean[6])
+
+        # Store covariance
+        cov.append(np.sqrt(np.diag(state_cov)))
+
     print("State mean: ", state_mean)
     print("State covariance: ", state_cov)
+
+    # Load Vicon data
+    vicon = io.loadmat('data/vicon/viconRot'+str(data_num)+'.mat')
+    vicon_roll = []
+    vicon_pitch = []
+    vicon_yaw = []
+    quat = Quaternion()
+    for i in range(vicon['rots'].shape[-1]):
+        rot = vicon['rots'][:,:,i].reshape(3,3)
+        q = quat.from_rotm(rot)
+        euler_angles = quat.euler_angles()
+        vicon_roll.append(euler_angles[0])
+        vicon_pitch.append(euler_angles[1])
+        vicon_yaw.append(euler_angles[2])
+
+    # roll, pitch, yaw are numpy arrays of length T
+    plt.figure('roll')
+    plt.plot(vicon_roll, label='vicon roll')
+    plt.plot(roll, label='filtered roll')
+    plt.legend()
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Roll vs Vicon Roll")
+    
+    
+    plt.figure('pitch')
+    plt.plot(vicon_pitch, label='vicon pitch')
+    plt.plot(pitch, label='filtered pitch')
+    plt.legend()
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Pitch vs Vicon Pitch")
+    
+    plt.figure('yaw')
+    plt.plot(vicon_yaw, label='vicon yaw')
+    plt.plot(yaw, label='filtered yaw')
+    plt.legend()
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Yaw vs Vicon Yaw")
+    #plt.show()
+    
+    plt.figure('ox')
+    plt.plot(gyro[:,0], label='gyroX')
+    plt.plot(ox, label='filtered omega x')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.legend()
+    plt.title("Filtered Omega_x vs Gyro_x")
+    
+    plt.figure('oy')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.plot(gyro[:,1], label='gyroY')
+    plt.plot(oy, label='filtered omega y')
+    plt.legend()
+    plt.title("Filtered Omega_y vs Gyro_y")
+    
+    plt.figure('oz')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.plot(gyro[:,2], label='gyroZ')
+    plt.plot(oz, label='filtered omega z')
+    plt.legend()
+    plt.title("Filtered Omega_z vs Gyro_z")
+    #plt.show()
+    
+    k = np.arange(1,T+1)
+    cov = np.asarray(cov).T
+    plt.figure('q_mc1')
+    plt.plot(k, roll)
+    #print(roll[:] - cov[0,:])
+    plt.fill_between(k, roll[:] - cov[0,:], roll[:] + cov[0,:], alpha=0.5, color='red')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Roll with variance bounds")
+
+    plt.figure('q_mc2')
+    plt.plot(k, pitch)
+    plt.fill_between(k, pitch - cov[1,:], pitch + cov[1,:], alpha=0.5, color='red')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Pitch with variance bounds")
+
+    plt.figure('q_mc3')
+    plt.plot(k, yaw)
+    plt.fill_between(k, yaw - cov[2,:], yaw + cov[2,:], alpha=0.5, color='red')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Yaw with variance bounds")
+    
+    plt.figure('o_mc1')
+    plt.plot(k, ox)
+    plt.fill_between(k, ox - cov[3,:], ox + cov[3,:], alpha=0.5, color='red')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Omega_x with variance bounds")
+
+    plt.figure('o_mc2')
+    plt.plot(k, oy)
+    plt.fill_between(k, oy - cov[4,:], oy + cov[4,:], alpha=0.5, color='red')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Omega_y with variance bounds")
+
+    plt.figure('o_mc3')
+    plt.plot(k, oz)
+    plt.fill_between(k, oz - cov[5,:], oz + cov[5,:], alpha=0.5, color='red')
+    plt.xlabel("Time steps")
+    plt.ylabel("Values")
+    plt.title("Filtered Omega_z with variance bounds")
+    plt.show()
+
     return roll, pitch, yaw
 
 
