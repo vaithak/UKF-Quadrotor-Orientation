@@ -4,21 +4,30 @@ This project was part of the course ESE650: Learning in Robotics at UPenn. This 
 
 # Results
 
-The algorithm is tested on three Vicon datasets. Below are the results:
+The algorithm is tested with Vicon data.
 
-Dataset 1:
 <p float="center">
-  <img src="./Results/res1.png" alt="result 1" class="center">
+  <img src="./Results/filtered_roll.png" alt="result 1" class="center">
 </p>
 
-Dataset 2:
 <p float="center">
-  <img src="./Results/res2.png" alt="result 2" class="center">
+  <img src="./Results/filtered_pitch.png" alt="result 2" class="center">
 </p>
 
-Dataset 3:
 <p float="center">
-  <img src="./Results/res3.png" alt="result 3" class="center">
+  <img src="./Results/filtered_yaw.png" alt="result 3" class="center">
+</p>
+
+<p float="center">
+  <img src="./Results/fil_roll_variance.png" alt="result 3" class="center">
+</p>
+
+<p float="center">
+  <img src="./Results/fil_pitch_variance.png" alt="result 3" class="center">
+</p>
+
+<p float="center">
+  <img src="./Results/fil_yaw_variance.png" alt="result 3" class="center">
 </p>
 
 
